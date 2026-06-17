@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "redstone",
+  "ingredients": [
+    {
+      "item": "create:package_frogport"
+    },
+    {
+      "item": "create:electron_tube"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "rescuefrogport:rescue_frogport"
+  }
+}
