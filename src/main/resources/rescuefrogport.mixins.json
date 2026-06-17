@@ -6,12 +6,15 @@
   "mixins": [
     "ChainConveyorFrogportTargetMixin",
     "PackagerBlockMixin",
-    "ChainConveyorBlockMixin"
+    "ChainConveyorBlockMixin",
+    "PackagePortConfigurationPacketMixin"
   ],
   "client": [
     "ChainConveyorInteractionHandlerMixin",
     "PackagePortTargetSelectionHandlerMixin",
-    "FrogportRendererMixin"
+    "FrogportRendererMixin",
+    "PackagePortScreenMixin",
+    "SmartBlockEntityRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
