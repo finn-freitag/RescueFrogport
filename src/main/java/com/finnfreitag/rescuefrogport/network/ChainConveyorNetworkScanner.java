@@ -81,7 +81,19 @@ public class ChainConveyorNetworkScanner {
         String stationId = "station:" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
 
         for (ChainConveyorPackage pkg : ccbe.getLoopingPackages()) {
-            allPackages.add(new PackageOnConveyor(pkg, ccbe, stationId));
+            BlockPos exitOffset = ccbe.routingTable.getExitFor(pkg.item);
+            String sectionId;
+            if (exitOffset != null && !exitOffset.equals(BlockPos.ZERO)) {
+                BlockPos targetPos = pos.offset(exitOffset);
+                if (pos.compareTo(targetPos) <= 0) {
+                    sectionId = "link:" + pos.getX() + "," + pos.getY() + "," + pos.getZ() + "->" + targetPos.getX() + "," + targetPos.getY() + "," + targetPos.getZ();
+                } else {
+                    sectionId = "link:" + targetPos.getX() + "," + targetPos.getY() + "," + targetPos.getZ() + "->" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
+                }
+            } else {
+                sectionId = stationId;
+            }
+            allPackages.add(new PackageOnConveyor(pkg, ccbe, sectionId));
         }
 
         for (Map.Entry<BlockPos, List<ChainConveyorPackage>> entry : ccbe.getTravellingPackages().entrySet()) {
