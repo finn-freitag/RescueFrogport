@@ -30,7 +30,6 @@ public class RescueFrogportBlock extends FrogportBlock {
         super.setPlacedBy(level, pos, state, placer, stack);
 
         if (!level.isClientSide() && level.getBlockEntity(pos) instanceof RescueFrogportBlockEntity be) {
-            be.generateRescueAddress();
             if (placer != null) {
                 placer.sendSystemMessage(
                         Component.literal("Rescue Frogport address: " + be.getRescueAddress()));

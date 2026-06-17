@@ -19,11 +19,11 @@ import java.util.*;
  */
 public class ChainConveyorNetworkScanner {
 
-    /** A package together with the conveyor it currently resides on. */
-    public record PackageOnConveyor(ChainConveyorPackage pkg, ChainConveyorBlockEntity conveyor) {}
+    /** A package together with the conveyor and section it currently resides on. */
+    public record PackageOnConveyor(ChainConveyorPackage pkg, ChainConveyorBlockEntity conveyor, String sectionId) {}
 
-    /** Position and address of a Rescue Frogport found on the network. */
-    public record RescueFrogportInfo(BlockPos pos, String address) {}
+    /** Position, address, and the conveyor block position a Rescue Frogport is connected to. */
+    public record RescueFrogportInfo(BlockPos pos, String address, BlockPos conveyorPos) {}
 
     private final Level level;
     private final Set<BlockPos> visitedConveyors = new HashSet<>();
@@ -31,6 +31,7 @@ public class ChainConveyorNetworkScanner {
     private final List<PackageOnConveyor> allPackages = new ArrayList<>();
     private final Set<String> allRegisteredAddresses = new HashSet<>();
     private final List<RescueFrogportInfo> rescueFrogports = new ArrayList<>();
+    private final Map<BlockPos, Set<BlockPos>> networkGraph = new HashMap<>();
 
     public ChainConveyorNetworkScanner(Level level, BlockPos startPos) {
         this.level = level;
@@ -60,8 +61,10 @@ public class ChainConveyorNetworkScanner {
             findAdjacentRescueFrogports(current);
 
             // Traverse chain connections.
+            Set<BlockPos> neighbors = networkGraph.computeIfAbsent(current, k -> new HashSet<>());
             for (BlockPos relativeConnection : ccbe.connections) {
                 BlockPos neighborPos = current.offset(relativeConnection);
+                neighbors.add(neighborPos);
                 if (visitedConveyors.add(neighborPos)) {
                     queue.add(neighborPos);
                 }
@@ -74,12 +77,26 @@ public class ChainConveyorNetworkScanner {
     // ------------------------------------------------------------------
 
     private void collectPackages(ChainConveyorBlockEntity ccbe) {
+        BlockPos pos = ccbe.getBlockPos();
+        String stationId = "station:" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
+
         for (ChainConveyorPackage pkg : ccbe.getLoopingPackages()) {
-            allPackages.add(new PackageOnConveyor(pkg, ccbe));
+            allPackages.add(new PackageOnConveyor(pkg, ccbe, stationId));
         }
-        for (List<ChainConveyorPackage> travelList : ccbe.getTravellingPackages().values()) {
-            for (ChainConveyorPackage pkg : travelList) {
-                allPackages.add(new PackageOnConveyor(pkg, ccbe));
+
+        for (Map.Entry<BlockPos, List<ChainConveyorPackage>> entry : ccbe.getTravellingPackages().entrySet()) {
+            BlockPos relativeTarget = entry.getKey();
+            BlockPos targetPos = pos.offset(relativeTarget);
+
+            String linkId;
+            if (pos.compareTo(targetPos) <= 0) {
+                linkId = "link:" + pos.getX() + "," + pos.getY() + "," + pos.getZ() + "->" + targetPos.getX() + "," + targetPos.getY() + "," + targetPos.getZ();
+            } else {
+                linkId = "link:" + targetPos.getX() + "," + targetPos.getY() + "," + targetPos.getZ() + "->" + pos.getX() + "," + pos.getY() + "," + pos.getZ();
+            }
+
+            for (ChainConveyorPackage pkg : entry.getValue()) {
+                allPackages.add(new PackageOnConveyor(pkg, ccbe, linkId));
             }
         }
     }
@@ -113,7 +130,7 @@ public class ChainConveyorNetworkScanner {
             String filter = port.filter();
             if (filter != null && filter.startsWith("rescue-")) {
                 BlockPos portPos = ccbe.getBlockPos().subtract(relativeOffset);
-                addRescueFrogportInfo(portPos, filter);
+                addRescueFrogportInfo(portPos, filter, ccbe.getBlockPos());
             }
         }
         for (Map.Entry<BlockPos, ConnectedPort> entry : ccbe.travelPorts.entrySet()) {
@@ -122,7 +139,7 @@ public class ChainConveyorNetworkScanner {
             String filter = port.filter();
             if (filter != null && filter.startsWith("rescue-")) {
                 BlockPos portPos = ccbe.getBlockPos().subtract(relativeOffset);
-                addRescueFrogportInfo(portPos, filter);
+                addRescueFrogportInfo(portPos, filter, ccbe.getBlockPos());
             }
         }
     }
@@ -133,17 +150,17 @@ public class ChainConveyorNetworkScanner {
             if (level.getBlockEntity(neighbor) instanceof RescueFrogportBlockEntity rfbe) {
                 String addr = rfbe.getRescueAddress();
                 if (addr != null && !addr.isEmpty()) {
-                    addRescueFrogportInfo(neighbor, addr);
+                    addRescueFrogportInfo(neighbor, addr, conveyorPos);
                 }
             }
         }
     }
 
-    private void addRescueFrogportInfo(BlockPos pos, String address) {
+    private void addRescueFrogportInfo(BlockPos pos, String address, BlockPos conveyorPos) {
         boolean alreadyFound = rescueFrogports.stream()
                 .anyMatch(info -> info.pos().equals(pos));
         if (!alreadyFound) {
-            rescueFrogports.add(new RescueFrogportInfo(pos, address));
+            rescueFrogports.add(new RescueFrogportInfo(pos, address, conveyorPos));
         }
     }
 
@@ -168,18 +185,67 @@ public class ChainConveyorNetworkScanner {
     }
 
     /**
-     * Finds the rescue frogport closest (Manhattan distance) to the given position.
+     * Finds the rescue frogport closest to the given position along the chain conveyor network path.
      */
-    public @Nullable RescueFrogportInfo findNearestRescueFrogport(BlockPos pos) {
+    public @Nullable RescueFrogportInfo findNearestRescueFrogport(BlockPos startConveyorPos) {
         RescueFrogportInfo nearest = null;
         int nearestDist = Integer.MAX_VALUE;
         for (RescueFrogportInfo info : rescueFrogports) {
-            int dist = pos.distManhattan(info.pos());
+            int dist = getNetworkDistance(startConveyorPos, info.conveyorPos());
             if (dist < nearestDist) {
                 nearestDist = dist;
                 nearest = info;
             }
         }
+
+        // Fallback to direct Manhattan if network pathfinding fails or returns unreachable
+        if (nearest == null || nearestDist == Integer.MAX_VALUE) {
+            nearest = null;
+            nearestDist = Integer.MAX_VALUE;
+            for (RescueFrogportInfo info : rescueFrogports) {
+                int dist = startConveyorPos.distManhattan(info.pos());
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = info;
+                }
+            }
+        }
+
         return nearest;
     }
+
+    public int getNetworkDistance(BlockPos start, BlockPos end) {
+        if (start.equals(end)) return 0;
+
+        Map<BlockPos, Integer> dists = new HashMap<>();
+        PriorityQueue<Node> pq = new PriorityQueue<>(Comparator.comparingInt(n -> n.dist));
+
+        dists.put(start, 0);
+        pq.add(new Node(start, 0));
+
+        while (!pq.isEmpty()) {
+            Node curr = pq.poll();
+            if (curr.pos.equals(end)) {
+                return curr.dist;
+            }
+            if (curr.dist > dists.getOrDefault(curr.pos, Integer.MAX_VALUE)) {
+                continue;
+            }
+
+            Set<BlockPos> neighbors = networkGraph.get(curr.pos);
+            if (neighbors != null) {
+                for (BlockPos neighbor : neighbors) {
+                    int edgeWeight = curr.pos.distManhattan(neighbor);
+                    int newDist = curr.dist + edgeWeight;
+                    if (newDist < dists.getOrDefault(neighbor, Integer.MAX_VALUE)) {
+                        dists.put(neighbor, newDist);
+                        pq.add(new Node(neighbor, newDist));
+                    }
+                }
+            }
+        }
+        return Integer.MAX_VALUE; // Unreachable
+    }
+
+    private record Node(BlockPos pos, int dist) {}
 }

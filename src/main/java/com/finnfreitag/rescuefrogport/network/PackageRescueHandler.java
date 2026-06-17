@@ -6,9 +6,11 @@ import com.mojang.logging.LogUtils;
 import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorBlockEntity;
 import com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorPackage;
+import com.simibubi.create.content.logistics.box.PackageItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.items.ItemStackHandler;
 import org.slf4j.Logger;
 
 import java.util.*;
@@ -80,9 +82,11 @@ public class PackageRescueHandler {
 
             boolean placed = false;
             for (List<PackageOnConveyor> group : groups) {
-                ItemStack representative = getBox(group.get(0).pkg());
+                PackageOnConveyor rep = group.get(0);
+                ItemStack representative = getBox(rep.pkg());
                 if (representative != null
-                        && ItemStack.isSameItemSameComponents(box, representative)) {
+                        && poc.sectionId().equals(rep.sectionId())
+                        && arePackagesEqual(box, representative)) {
                     group.add(poc);
                     placed = true;
                     break;
@@ -116,6 +120,59 @@ public class PackageRescueHandler {
         for (PackageToRescue rescue : toRescue) {
             executeRescue(level, rescue);
         }
+    }
+
+    public static boolean arePackagesEqual(ItemStack box1, ItemStack box2) {
+        if (box1 == box2) return true;
+        if (box1.isEmpty() || box2.isEmpty()) return false;
+
+        // 1. Compare address
+        String addr1 = PackageItem.getAddress(box1);
+        String addr2 = PackageItem.getAddress(box2);
+        if (!Objects.equals(addr1, addr2)) return false;
+
+        // 2. Compare contents (order independent and consolidating duplicates)
+        return areContentsEqual(box1, box2);
+    }
+
+    private static boolean areContentsEqual(ItemStack box1, ItemStack box2) {
+        List<ItemStack> list1 = getConsolidatedContents(box1);
+        List<ItemStack> list2 = getConsolidatedContents(box2);
+        if (list1.size() != list2.size()) return false;
+
+        for (ItemStack s1 : list1) {
+            boolean found = false;
+            for (ItemStack s2 : list2) {
+                if (ItemStack.isSameItemSameComponents(s1, s2) && s1.getCount() == s2.getCount()) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+        return true;
+    }
+
+    private static List<ItemStack> getConsolidatedContents(ItemStack box) {
+        ItemStackHandler inv = PackageItem.getContents(box);
+        List<ItemStack> consolidated = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = inv.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+
+            boolean merged = false;
+            for (ItemStack existing : consolidated) {
+                if (ItemStack.isSameItemSameComponents(stack, existing)) {
+                    existing.grow(stack.getCount());
+                    merged = true;
+                    break;
+                }
+            }
+            if (!merged) {
+                consolidated.add(stack.copy());
+            }
+        }
+        return consolidated;
     }
 
     private static boolean isAddressValid(String address,

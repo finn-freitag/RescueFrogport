@@ -27,6 +27,16 @@ public class RescueFrogportBlockEntity extends FrogportBlockEntity {
         super(RescueFrogport.RESCUE_FROGPORT_BE.get(), pos, state);
     }
 
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level != null && !level.isClientSide()) {
+            if (this.addressFilter == null || this.addressFilter.isEmpty()) {
+                generateRescueAddress();
+            }
+        }
+    }
+
     public void generateRescueAddress() {
         Random random = new Random();
         StringBuilder sb = new StringBuilder("rescue-");
@@ -40,6 +50,9 @@ public class RescueFrogportBlockEntity extends FrogportBlockEntity {
     }
 
     public String getRescueAddress() {
+        if (this.addressFilter == null || this.addressFilter.isEmpty()) {
+            generateRescueAddress();
+        }
         return this.addressFilter;
     }
 

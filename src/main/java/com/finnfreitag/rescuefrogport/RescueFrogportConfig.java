@@ -14,7 +14,7 @@ public class RescueFrogportConfig {
             .comment("Maximum number of identical packages (same contents and same address)",
                      "allowed in a single chain conveyor network before excess packages are rescued.",
                      "Default: 10")
-            .defineInRange("congestionThreshold", 10, 1, 100);
+            .defineInRange("congestionThreshold", 10, 1, 1000);
 
     private static final ModConfigSpec.IntValue SCAN_INTERVAL_TICKS = BUILDER
             .comment("How often (in game ticks) each rescue frogport scans its chain conveyor network.",
