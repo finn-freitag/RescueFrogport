@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.finnfreitag.rescuefrogport.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ChainConveyorFrogportTargetMixin"
+  ],
+  "client": [
+    "ChainConveyorInteractionHandlerMixin",
+    "PackagePortTargetSelectionHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
