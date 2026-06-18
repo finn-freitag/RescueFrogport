@@ -4,8 +4,6 @@ import com.finnfreitag.rescuefrogport.block.RescueFrogportBlock;
 import com.finnfreitag.rescuefrogport.block.RescueFrogportBlockEntity;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.content.logistics.packagePort.PackagePortItem;
-import com.simibubi.create.content.logistics.packagePort.frogport.FrogportRenderer;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -19,7 +17,6 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -73,7 +70,16 @@ public class RescueFrogport {
         modContainer.registerConfig(ModConfig.Type.COMMON, RescueFrogportConfig.SPEC);
 
         modEventBus.addListener(this::addCreative);
-        modEventBus.addListener(this::registerRenderers);
+
+        if (net.neoforged.fml.loading.FMLEnvironment.dist == net.neoforged.api.distmarker.Dist.CLIENT) {
+            ClientOnly.init(modEventBus);
+        }
+    }
+
+    private static class ClientOnly {
+        private static void init(IEventBus modEventBus) {
+            modEventBus.addListener(RescueFrogportClient::registerRenderers);
+        }
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
@@ -85,11 +91,5 @@ public class RescueFrogport {
         if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
             event.accept(RESCUE_FROGPORT_ITEM.get());
         }
-    }
-
-    private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        // Register Create's FrogportRenderer for our RescueFrogportBlockEntity type
-        event.registerBlockEntityRenderer(RESCUE_FROGPORT_BE.get(),
-                context -> (BlockEntityRenderer) new FrogportRenderer(context));
     }
 }
