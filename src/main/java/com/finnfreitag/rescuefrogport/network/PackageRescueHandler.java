@@ -182,7 +182,12 @@ public class PackageRescueHandler {
         for (RescueFrogportInfo info : rescueFrogports) {
             if (address.equals(info.address())) return true;
         }
-        return validAddresses.contains(address);
+        for (String registeredAddress : validAddresses) {
+            if (PackageItem.matchAddress(address, registeredAddress)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String getAddress(ItemStack box) {
