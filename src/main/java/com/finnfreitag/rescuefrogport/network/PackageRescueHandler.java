@@ -179,6 +179,9 @@ public class PackageRescueHandler {
                                            Set<String> validAddresses,
                                            List<RescueFrogportInfo> rescueFrogports) {
         // Rescue addresses are always valid (prevents re-rescue loops)
+        if (address.equals("rescue-*") || address.startsWith("rescue-") || PackageItem.matchAddress(address, "rescue-*")) {
+            return true;
+        }
         for (RescueFrogportInfo info : rescueFrogports) {
             if (address.equals(info.address())) return true;
         }
@@ -213,10 +216,10 @@ public class PackageRescueHandler {
         ItemStack box = getBox(pkg);
         if (box == null || box.isEmpty()) return;
 
-        // Update the package address to the rescue address
-        box.set(AllDataComponents.PACKAGE_ADDRESS, rescue.target.address());
+        // Update the package address to the rescue address wildcard
+        box.set(AllDataComponents.PACKAGE_ADDRESS, "rescue-*");
 
-        LOGGER.debug("Readdressed conveyor package at {} to rescue address: {}",
+        LOGGER.debug("Readdressed conveyor package at {} to rescue wildcard address: rescue-* (nearest was {})",
                 conveyor.getBlockPos(), rescue.target.address());
 
         // Notify the chain conveyor about the changes so client updates model and server updates routing
