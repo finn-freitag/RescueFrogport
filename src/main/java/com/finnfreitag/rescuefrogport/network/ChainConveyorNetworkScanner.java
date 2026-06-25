@@ -161,7 +161,7 @@ public class ChainConveyorNetworkScanner {
             BlockPos neighbor = conveyorPos.relative(dir);
             if (level.getBlockEntity(neighbor) instanceof RescueFrogportBlockEntity rfbe) {
                 String addr = rfbe.getRescueAddress();
-                if (addr != null && !addr.isEmpty()) {
+                if (addr != null && addr.startsWith("rescue-")) {
                     addRescueFrogportInfo(neighbor, addr, conveyorPos);
                 }
             }

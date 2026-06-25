@@ -179,7 +179,7 @@ public class PackageRescueHandler {
                                            Set<String> validAddresses,
                                            List<RescueFrogportInfo> rescueFrogports) {
         // Rescue addresses are always valid (prevents re-rescue loops)
-        if (address.equals("rescue-*") || address.startsWith("rescue-") || PackageItem.matchAddress(address, "rescue-*")) {
+        if (address.equals("rescue-*") || address.startsWith("rescue-") || address.startsWith("full-rescue-") || PackageItem.matchAddress(address, "rescue-*")) {
             return true;
         }
         for (RescueFrogportInfo info : rescueFrogports) {

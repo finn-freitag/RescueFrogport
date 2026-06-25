@@ -62,6 +62,25 @@ public class RescueFrogportBlockEntity extends FrogportBlockEntity {
 
         if (level == null || level.isClientSide()) return;
 
+        boolean currentlyBackedUp = this.isBackedUp();
+        if (currentlyBackedUp) {
+            if (this.addressFilter != null && this.addressFilter.startsWith("rescue-")) {
+                String uuid = this.addressFilter.substring("rescue-".length());
+                this.addressFilter = "full-rescue-" + uuid;
+                setChanged();
+                sendData();
+                LOGGER.info("RescueFrogport at {} is full, renaming to {}", worldPosition, this.addressFilter);
+            }
+        } else {
+            if (this.addressFilter != null && this.addressFilter.startsWith("full-rescue-")) {
+                String uuid = this.addressFilter.substring("full-rescue-".length());
+                this.addressFilter = "rescue-" + uuid;
+                setChanged();
+                sendData();
+                LOGGER.info("RescueFrogport at {} is no longer full, renaming back to {}", worldPosition, this.addressFilter);
+            }
+        }
+
         tickCounter++;
         if (tickCounter < RescueFrogportConfig.scanIntervalTicks) return;
         tickCounter = 0;
@@ -83,5 +102,15 @@ public class RescueFrogportBlockEntity extends FrogportBlockEntity {
             LOGGER.warn("RescueFrogport at {} error during scan: {}",
                     worldPosition, e.getMessage());
         }
+    }
+
+    @Override
+    public void tryPullingFromOwnAndAdjacentInventories() {
+        // Do nothing - Rescue Frogports should never pull/send packages onto the conveyor
+    }
+
+    @Override
+    public boolean tryPullingFrom(net.neoforged.neoforge.items.IItemHandler inv) {
+        return false;
     }
 }
