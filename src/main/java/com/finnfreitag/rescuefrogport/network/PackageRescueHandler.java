@@ -69,46 +69,104 @@ public class PackageRescueHandler {
         }
 
         // ------------------------------------------------------------------
-        // Rule 3: congestion detection (identical-package buildup)
+        // Rule 3: congestion detection (identical-package buildup or section buildup)
         // ------------------------------------------------------------------
         Set<ChainConveyorPackage> alreadyScheduled = new HashSet<>();
         for (PackageToRescue p : toRescue) alreadyScheduled.add(p.poc.pkg());
 
-        List<List<PackageOnConveyor>> groups = new ArrayList<>();
-        for (PackageOnConveyor poc : allPackages) {
-            if (alreadyScheduled.contains(poc.pkg())) continue;
-            ItemStack box = getBox(poc.pkg());
-            if (box == null || box.isEmpty()) continue;
+        if (com.finnfreitag.rescuefrogport.RescueFrogportConfig.congestionThresholdAppliesToAllPackages) {
+            // Group packages by sectionId first
+            Map<String, List<PackageOnConveyor>> packagesBySection = new HashMap<>();
+            for (PackageOnConveyor poc : allPackages) {
+                if (alreadyScheduled.contains(poc.pkg())) continue;
+                ItemStack box = getBox(poc.pkg());
+                if (box == null || box.isEmpty()) continue;
+                packagesBySection.computeIfAbsent(poc.sectionId(), k -> new ArrayList<>()).add(poc);
+            }
 
-            boolean placed = false;
-            for (List<PackageOnConveyor> group : groups) {
-                PackageOnConveyor rep = group.get(0);
-                ItemStack representative = getBox(rep.pkg());
-                if (representative != null
-                        && poc.sectionId().equals(rep.sectionId())
-                        && arePackagesEqual(box, representative)) {
-                    group.add(poc);
-                    placed = true;
-                    break;
+            for (Map.Entry<String, List<PackageOnConveyor>> entry : packagesBySection.entrySet()) {
+                List<PackageOnConveyor> sectionPackages = entry.getValue();
+                if (sectionPackages.size() > congestionThreshold) {
+                    int excess = sectionPackages.size() - congestionThreshold;
+
+                    // Group packages in this section by equality
+                    List<List<PackageOnConveyor>> equalGroups = new ArrayList<>();
+                    for (PackageOnConveyor poc : sectionPackages) {
+                        ItemStack box = getBox(poc.pkg());
+                        if (box == null || box.isEmpty()) continue;
+                        boolean placed = false;
+                        for (List<PackageOnConveyor> group : equalGroups) {
+                            PackageOnConveyor rep = group.get(0);
+                            ItemStack representative = getBox(rep.pkg());
+                            if (representative != null && arePackagesEqual(box, representative)) {
+                                group.add(poc);
+                                placed = true;
+                                break;
+                            }
+                        }
+                        if (!placed) {
+                            List<PackageOnConveyor> newGroup = new ArrayList<>();
+                            newGroup.add(poc);
+                            equalGroups.add(newGroup);
+                        }
+                    }
+
+                    // Repeatedly rescue a package from the largest group of equal packages
+                    for (int i = 0; i < excess; i++) {
+                        List<PackageOnConveyor> largestGroup = null;
+                        int maxSize = 0;
+                        for (List<PackageOnConveyor> group : equalGroups) {
+                            if (group.size() > maxSize) {
+                                maxSize = group.size();
+                                largestGroup = group;
+                            }
+                        }
+                        if (largestGroup == null || largestGroup.isEmpty()) break;
+                        PackageOnConveyor poc = largestGroup.remove(largestGroup.size() - 1);
+                        RescueFrogportInfo nearest = scanner.findNearestRescueFrogport(poc.conveyor().getBlockPos());
+                        if (nearest != null) {
+                            toRescue.add(new PackageToRescue(poc, nearest));
+                        }
+                    }
                 }
             }
-            if (!placed) {
-                List<PackageOnConveyor> newGroup = new ArrayList<>();
-                newGroup.add(poc);
-                groups.add(newGroup);
-            }
-        }
+        } else {
+            // Existing logic: Applies to identical packages only
+            List<List<PackageOnConveyor>> groups = new ArrayList<>();
+            for (PackageOnConveyor poc : allPackages) {
+                if (alreadyScheduled.contains(poc.pkg())) continue;
+                ItemStack box = getBox(poc.pkg());
+                if (box == null || box.isEmpty()) continue;
 
-        for (List<PackageOnConveyor> group : groups) {
-            if (group.size() > congestionThreshold) {
-                int excess = group.size() - congestionThreshold;
-                // Remove from the tail of the group (least recently added)
-                for (int i = 0; i < excess; i++) {
-                    PackageOnConveyor poc = group.get(group.size() - 1 - i);
-                    RescueFrogportInfo nearest = scanner.findNearestRescueFrogport(
-                            poc.conveyor().getBlockPos());
-                    if (nearest != null) {
-                        toRescue.add(new PackageToRescue(poc, nearest));
+                boolean placed = false;
+                for (List<PackageOnConveyor> group : groups) {
+                    PackageOnConveyor rep = group.get(0);
+                    ItemStack representative = getBox(rep.pkg());
+                    if (representative != null
+                            && poc.sectionId().equals(rep.sectionId())
+                            && arePackagesEqual(box, representative)) {
+                        group.add(poc);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    List<PackageOnConveyor> newGroup = new ArrayList<>();
+                    newGroup.add(poc);
+                    groups.add(newGroup);
+                }
+            }
+
+            for (List<PackageOnConveyor> group : groups) {
+                if (group.size() > congestionThreshold) {
+                    int excess = group.size() - congestionThreshold;
+                    for (int i = 0; i < excess; i++) {
+                        PackageOnConveyor poc = group.get(group.size() - 1 - i);
+                        RescueFrogportInfo nearest = scanner.findNearestRescueFrogport(
+                                poc.conveyor().getBlockPos());
+                        if (nearest != null) {
+                            toRescue.add(new PackageToRescue(poc, nearest));
+                        }
                     }
                 }
             }
