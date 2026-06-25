@@ -71,6 +71,10 @@ public class RescueFrogportBlockEntity extends FrogportBlockEntity {
                 sendData();
                 LOGGER.info("RescueFrogport at {} is full, renaming to {}", worldPosition, this.addressFilter);
             }
+            BlockState state = level.getBlockState(worldPosition);
+            if (state.hasProperty(RescueFrogportBlock.FULL) && !state.getValue(RescueFrogportBlock.FULL)) {
+                level.setBlock(worldPosition, state.setValue(RescueFrogportBlock.FULL, true), 3);
+            }
         } else {
             if (this.addressFilter != null && this.addressFilter.startsWith("full-rescue-")) {
                 String uuid = this.addressFilter.substring("full-rescue-".length());
@@ -78,6 +82,10 @@ public class RescueFrogportBlockEntity extends FrogportBlockEntity {
                 setChanged();
                 sendData();
                 LOGGER.info("RescueFrogport at {} is no longer full, renaming back to {}", worldPosition, this.addressFilter);
+            }
+            BlockState state = level.getBlockState(worldPosition);
+            if (state.hasProperty(RescueFrogportBlock.FULL) && state.getValue(RescueFrogportBlock.FULL)) {
+                level.setBlock(worldPosition, state.setValue(RescueFrogportBlock.FULL, false), 3);
             }
         }
 

@@ -92,12 +92,21 @@ public class FrogportRendererMixin {
             // 6. Scale down to be a fitting warn indicator
             ms.scale(0.6666f, 0.6666f, 0.6666f);
 
+            int tubeLight;
+            net.minecraft.world.level.block.state.BlockState state = blockEntity.getBlockState();
+            if (state.hasProperty(com.finnfreitag.rescuefrogport.block.RescueFrogportBlock.FULL)
+                    && state.getValue(com.finnfreitag.rescuefrogport.block.RescueFrogportBlock.FULL)) {
+                tubeLight = 0xF000F0; // Fullbright (glowing in the dark)
+            } else {
+                tubeLight = light; // Ambient lighting
+            }
+
             // First sprite (standing vertically)
             ms.pushPose();
             net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(
                     tubeStack,
                     net.minecraft.world.item.ItemDisplayContext.FIXED,
-                    light,
+                    tubeLight,
                     overlay,
                     ms,
                     buffer,
@@ -112,7 +121,7 @@ public class FrogportRendererMixin {
             net.minecraft.client.Minecraft.getInstance().getItemRenderer().renderStatic(
                     tubeStack,
                     net.minecraft.world.item.ItemDisplayContext.FIXED,
-                    light,
+                    tubeLight,
                     overlay,
                     ms,
                     buffer,
