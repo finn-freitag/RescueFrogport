@@ -86,11 +86,11 @@ public class FrogportRendererMixin {
             // 4. Rotate head pitch around X-axis
             ms.mulPose(com.mojang.math.Axis.XP.rotationDegrees(headPitch));
 
-            // 5. Go to the top center of the head in the rotated and tilted space: (0.0, 0.325, 0.0)
-            ms.translate(0.0f, 0.325f, 0.0f);
+            // 5. Go to the top center of the head in the rotated and tilted space
+            ms.translate(0.0f, 0.25f, -0.065f);
 
-            // 6. Scale down to be a fitting warn indicator (upscaled by 20% from 0.35f to 0.42f)
-            ms.scale(0.42f, 0.42f, 0.42f);
+            // 6. Scale down to be a fitting warn indicator
+            ms.scale(0.6666f, 0.6666f, 0.6666f);
 
             // First sprite (standing vertically)
             ms.pushPose();
